@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Seguimiento de un Auto - OpenLayers</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@latest/ol.css">
+  <style>
+    html,
+    body,
+    #map {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100vh;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+  <script src="https://cdn.jsdelivr.net/npm/ol@latest/dist/ol.js"></script>
+  <script>
+    // Coordenadas del trayecto simuladas (Buenos Aires)
+    const routeCoords = [
+      [-58.3816, -34.6037],
+      [-58.3800, -34.6045],
+      [-58.3780, -34.6050],
+      [-58.3760, -34.6060],
+      [-58.3740, -34.6070]
+    ];
+
+    const route = new ol.geom.LineString(routeCoords)
+      .transform('EPSG:4326', 'EPSG:3857');
+
+    // Punto inicial
+    const position = new ol.geom.Point(route.getCoordinateAt(0));
+
+    const routeFeature = new ol.Feature({ geometry: route });
+    const markerFeature = new ol.Feature({ geometry: position });
+
+    // Estilo del punto
+    markerFeature.setStyle(new ol.style.Style({
+      image: new ol.style.Circle({
+        radius: 6,
+        fill: new ol.style.Fill({ color: 'red' }),
+        stroke: new ol.style.Stroke({ color: 'white', width: 2 })
+      })
+    }));
+
+    const vectorLayer = new ol.layer.Vector({
+      source: new ol.source.Vector({ features: [routeFeature, markerFeature] })
+    });
+
+    const map = new ol.Map({
+      target: 'map',
+      layers: [
+        new ol.layer.Tile({ source: new ol.source.OSM() }),
+        vectorLayer
+      ],
+      view: new ol.View({
+        center: ol.proj.fromLonLat([-58.3800, -34.6045]),
+        zoom: 16
+      })
+    });
+
+    // Animación
+    const duration = 6000; // milisegundos
+    const start = Date.now();
+
+    function animate() {
+      const elapsed = Date.now() - start;
+      const fraction = elapsed / duration;
+
+      if (fraction <= 1) {
+        const coord = route.getCoordinateAt(fraction);
+        markerFeature.getGeometry().setCoordinates(coord);
+        map.render();
+        requestAnimationFrame(animate);
+      }
+    }
+
+    animate();
+  </script>
+</body>
+
+</html>

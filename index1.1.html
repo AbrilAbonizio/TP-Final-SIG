@@ -2,56 +2,56 @@
 <html lang="es">
 
 <head>
-  <meta charset="UTF-8">
-  <title>Seguimiento de un Auto - OpenLayers</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@latest/ol.css">
+  <meta charset="UTF-8" />
+  <title>Seguimiento con CSV</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@latest/ol.css" />
   <style>
     html,
-    body,
-    #map {
+    body {
       margin: 0;
       padding: 0;
-      width: 100%;
       height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #controls {
+      padding: 10px;
+      background: #f0f0f0;
+    }
+
+    #map {
+      flex: 1 1 auto;
+      width: 100%;
     }
   </style>
 </head>
 
 <body>
+  <div id="controls">
+    <input type="file" id="fileInput" accept=".csv,.geojson,.json" />
+    <button id="startBtn">Ver recorrido</button>
+    <button id="restartBtn" disabled>Reiniciar recorrido</button>
+
+  </div>
   <div id="map"></div>
+
   <script src="https://cdn.jsdelivr.net/npm/ol@latest/dist/ol.js"></script>
   <script>
-    // Coordenadas del trayecto simuladas (Buenos Aires)
-    const routeCoords = [
-      [-58.3816, -34.6037],
-      [-58.3800, -34.6045],
-      [-58.3780, -34.6050],
-      [-58.3760, -34.6060],
-      [-58.3740, -34.6070]
-    ];
+    let csvText = '';
+    let geojsonData = null;
+    let fileType = '';
+    let route = null;
+    let markerFeature = null;
 
-    const route = new ol.geom.LineString(routeCoords)
-      .transform('EPSG:4326', 'EPSG:3857');
 
-    // Punto inicial
-    const position = new ol.geom.Point(route.getCoordinateAt(0));
-
-    const routeFeature = new ol.Feature({ geometry: route });
-    const markerFeature = new ol.Feature({ geometry: position });
-
-    // Estilo del punto
-    markerFeature.setStyle(new ol.style.Style({
-      image: new ol.style.Circle({
-        radius: 6,
-        fill: new ol.style.Fill({ color: 'red' }),
-        stroke: new ol.style.Stroke({ color: 'white', width: 2 })
-      })
-    }));
-
+    // Vector source y capa global para poder limpiar y reutilizar
+    const vectorSource = new ol.source.Vector();
     const vectorLayer = new ol.layer.Vector({
-      source: new ol.source.Vector({ features: [routeFeature, markerFeature] })
+      source: vectorSource
     });
 
+    // Crear el mapa solo una vez
     const map = new ol.Map({
       target: 'map',
       layers: [
@@ -59,28 +59,194 @@
         vectorLayer
       ],
       view: new ol.View({
-        center: ol.proj.fromLonLat([-58.3800, -34.6045]),
-        zoom: 16
+        center: ol.proj.fromLonLat([0, 0]),
+        zoom: 2
       })
     });
 
-    // Animación
-    const duration = 6000; // milisegundos
-    const start = Date.now();
+    // Leer archivo y guardar contenido
+    document.getElementById('fileInput').addEventListener('change', function (evt) {
+      const file = evt.target.files[0];
+      if (!file) {
+        alert('No se seleccionó ningún archivo');
+        return;
+      }
 
-    function animate() {
-      const elapsed = Date.now() - start;
-      const fraction = elapsed / duration;
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        const content = e.target.result;
 
-      if (fraction <= 1) {
+        if (ext === 'csv') {
+          csvText = content;
+          fileType = 'csv';
+          geojsonData = null;
+        } else if (ext === 'geojson' || ext === 'json') {
+          try {
+            geojsonData = JSON.parse(content);
+            fileType = 'geojson';
+            csvText = '';
+          } catch (error) {
+            alert('Error al parsear el archivo GeoJSON/JSON');
+          }
+        } else {
+          alert('Formato no compatible. Solo se aceptan CSV o GeoJSON.');
+          csvText = '';
+          geojsonData = null;
+          fileType = '';
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    document.getElementById('startBtn').addEventListener('click', function () {
+      let coords = [];
+
+      if (fileType === 'csv') {
+        coords = parseCSV(csvText);
+      } else if (fileType === 'geojson') {
+        coords = parseGeoJSON(geojsonData);
+      } else {
+        alert('Primero debe cargar un archivo válido');
+        return;
+      }
+
+      if (coords.length < 2) {
+        alert('El archivo debe tener al menos 2 coordenadas válidas');
+        return;
+      }
+
+      showRoute(coords);
+    });
+
+    document.getElementById('restartBtn').addEventListener('click', function () {
+      if (!window.currentRoute || !window.currentMarker) {
+        alert("No hay recorrido cargado para reiniciar.");
+        return;
+      }
+
+      const route = window.currentRoute;
+      const markerFeature = window.currentMarker;
+
+      const duration = 15000; // 15 segundos
+      const start = Date.now();
+
+      function animateAgain() {
+        const elapsed = Date.now() - start;
+        let fraction = elapsed / duration;
+
+        if (fraction > 1) fraction = 1;
+
         const coord = route.getCoordinateAt(fraction);
         markerFeature.getGeometry().setCoordinates(coord);
         map.render();
-        requestAnimationFrame(animate);
+
+        if (fraction < 1) {
+          requestAnimationFrame(animateAgain);
+        }
       }
+
+      animateAgain();
+    });
+
+
+    function parseGeoJSON(geojson) {
+      if (!geojson || !geojson.features || geojson.features.length === 0) return [];
+
+      // Buscar la primera LineString válida
+      for (const feature of geojson.features) {
+        if (feature.geometry && feature.geometry.type === 'LineString') {
+          return feature.geometry.coordinates.map(coord => [coord[0], coord[1]]);
+        }
+      }
+
+      alert('El GeoJSON no contiene una LineString válida');
+      return [];
     }
 
-    animate();
+    function parseCSV(text) {
+      const lines = text.trim().split('\n');
+      // Si la primera línea tiene texto no numérico, se asume que es cabecera y se omite
+      let startLine = 0;
+      if (lines.length > 0) {
+        const firstParts = lines[0].split(',');
+        if (isNaN(parseFloat(firstParts[0])) || isNaN(parseFloat(firstParts[1]))) {
+          startLine = 1;
+        }
+      }
+      const coords = [];
+      for (let i = startLine; i < lines.length; i++) {
+        const parts = lines[i].trim().split(',');
+        if (parts.length >= 2) {
+          const lon = parseFloat(parts[0]);
+          const lat = parseFloat(parts[1]);
+          if (!isNaN(lon) && !isNaN(lat)) {
+            coords.push([lon, lat]);
+          }
+        }
+      }
+      return coords;
+    }
+
+    function showRoute(routeCoords) {
+      // Limpiar capa anterior
+      vectorSource.clear();
+
+      // Convertir coords a EPSG:3857
+      const routeCoords3857 = routeCoords.map(coord => ol.proj.fromLonLat(coord));
+      const route = new ol.geom.LineString(routeCoords3857);
+      const position = new ol.geom.Point(routeCoords3857[0]);
+
+      const routeFeature = new ol.Feature({ geometry: route });
+      const markerFeature = new ol.Feature({ geometry: position });
+
+      routeFeature.setStyle(new ol.style.Style({
+        stroke: new ol.style.Stroke({ color: 'blue', width: 4 })
+      }));
+
+      markerFeature.setStyle(new ol.style.Style({
+        image: new ol.style.Circle({
+          radius: 7,
+          fill: new ol.style.Fill({ color: 'red' }),
+          stroke: new ol.style.Stroke({ color: 'white', width: 2 })
+        })
+      }));
+
+      vectorSource.addFeatures([routeFeature, markerFeature]);
+
+      // Centrar y hacer zoom al inicio del recorrido
+      map.getView().setCenter(routeCoords3857[0]);
+      map.getView().setZoom(17);
+
+      // Animación del marcador
+      const duration = 20000; // 20 segundos
+      const start = Date.now();
+
+      function animate() {
+        const elapsed = Date.now() - start;
+        let fraction = elapsed / duration;
+
+        if (fraction > 1) fraction = 1;
+
+        const coord = route.getCoordinateAt(fraction);
+        markerFeature.getGeometry().setCoordinates(coord);
+        map.render();
+
+        if (fraction < 1) {
+          requestAnimationFrame(animate);
+        }
+      }
+
+      animate();
+
+      // Guardar referencias globales para poder reiniciar la animación
+      window.currentRoute = route;
+      window.currentMarker = markerFeature;
+
+      // Habilitar el botón "Reiniciar recorrido"
+      document.getElementById('restartBtn').disabled = false;
+
+    }
   </script>
 </body>
 

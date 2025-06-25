@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>OpenLayers - Puntos y Rutas</title>
+  <title>Simulacion del monitoreo de una entidad sobre un mapa</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.1.0/ol.css">
   <style>
     html,
@@ -87,10 +87,14 @@
 
   <script src="https://cdn.jsdelivr.net/npm/ol@v9.1.0/dist/ol.js"></script>
   <script>
+
+    // Creación de fuentes de datos
     const pointSource = new ol.source.Vector();
     const routeSource = new ol.source.Vector();
     const carSource = new ol.source.Vector();
 
+
+    // Creación de capas
     const pointLayer = new ol.layer.Vector({
       source: pointSource,
       style: new ol.style.Style({
@@ -127,16 +131,19 @@
       source: carSource
     });
 
+
+    // Creacion del mapa
     const map = new ol.Map({
       target: 'map',
       layers: [
-        new ol.layer.Tile({ source: new ol.source.OSM() }),
-        routeLayer,
-        pointLayer,
-        carLayer
+        new ol.layer.Tile({ source: new ol.source.OSM() }), // Mapa Base
+        routeLayer, // Capa de Rutas
+        pointLayer, // Capa de Puntos
+        carLayer // Capa de la entidad
       ],
       view: new ol.View({
-        center: ol.proj.fromLonLat([-60.6328, -32.9515]),
+        center: ol.proj.fromLonLat([-60.6328, -32.9515]), // Conversion de coordenadas
+                                                          // y determinación del centro 
         zoom: 13
       })
     });

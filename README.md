@@ -7,18 +7,20 @@ Este trabajo consiste en una aplicación web interactiva utilizada para la simul
 
 ## Funcionalidades 
 
-   - **Agregar Puntos:** Modo para agregar marcadores con clic sobre el mapa.
-   - **Mover Puntos:** Permite editar las posiciones de los marcadores agregados.
-   - **Limpiar Puntos:** Reinicia los puntos ingresados.
+   - **Agregar Punto:** Permite agregar los puntos del recorrido clickeando sobre el mapa
+   - **Mover Punto:** Permite editar las posiciones de los puntos agregados
+   - **Limpiar Puntos:** Elimina el punto seleccionado junto con su ruta
+   - **Simular Viaje:** Muestra el recorrido óptimo que seguría el vehículo
+   - **Cargar Ruta:** Opción para importar rutas desde archivos 
 
 ## Características
 
    - Mapa base obtenido de **OpenStreetMap (OSM)**
-   - Generación del trayecto óptimo consultando la API de **OSRM (Open Source Routing Machine)**.
+   - Generación del trayecto óptimo consultando la API de **OSRM (Open Source Routing Machine)**
    - Organización en Capas Vectoriales
    - Lectura local de archivos **CSV** (`Latitud, Longitud`)
    - Lectura de archivos **GeoJSON / JSON**
-   - Controles de **Iniciar**, **Pausar** y **Detener/Reiniciar** la simulación.  
+   - Controles de **Iniciar**, **Pausar** y **Detener/Reiniciar** la simulación
 
 
 ## Tecnologías y Librerías Utilizadas

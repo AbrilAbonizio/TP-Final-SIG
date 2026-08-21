@@ -43,8 +43,10 @@
       font-size: 14px;
       font-family: Arial, sans-serif;
     }
-
-    button:hover,
+    button:focus {
+      background: #b1a8a8;
+    }
+    
     .csv-label:hover {
       background: #eee;
     }
@@ -77,6 +79,7 @@
   <div class="controls">
     <button id="addPointBtn">Agregar Punto</button>
     <button id="movePointBtn">Mover Punto</button>
+    <button id="clearPointBtn">Limpiar Punto</button>
     <button id="createRouteBtn">Crear Ruta</button>
     <button id="simulateBtn">Simular Viaje</button>
     <div class="csv-container">
@@ -149,6 +152,7 @@
     });
 
     let isAddMode = true;
+    let isClearMode = false;
     let dragInteraction = null;
     let routeCoordinates = [];
     let animating = false;
@@ -167,17 +171,46 @@
       pointSource.addFeature(point);
     }
 
+    function clearPoint(event) {
+      if (!isClearMode) return;
+      const feature = map.forEachFeatureAtPixel(event.pixel, f => f, {
+        layerFilter: layer => layer === pointLayer
+      });
+      if (feature) {
+        pointSource.removeFeature(feature);
+        routeSource.clear();
+        routeCoordinates = [];
+        carFeature.setGeometry(null);
+        animating = false;
+      }
+    }
+
     document.getElementById('addPointBtn').addEventListener('click', () => {
       isAddMode = true;
+      isClearMode = false;
       if (dragInteraction) map.removeInteraction(dragInteraction);
+      map.un('click', clearPoint);
       map.on('click', addPoint);
     });
 
     document.getElementById('movePointBtn').addEventListener('click', () => {
       isAddMode = false;
+      isClearMode = false;
       map.un('click', addPoint);
+      map.un('click', clearPoint);
       dragInteraction = createDragInteraction();
       map.addInteraction(dragInteraction);
+    });
+
+    document.getElementById('clearPointBtn').addEventListener('click', () => {
+      isAddMode = false;
+      isClearMode = true;
+      map.un('click', addPoint);
+      if (dragInteraction) {
+        map.removeInteraction(dragInteraction);
+        dragInteraction = null;
+      }
+      map.on('click', clearPoint);
     });
 
     async function createRoute() {
